@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Legal Compensation Calculator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        html {
+            scroll-behavior: smooth; /* Smooth scrolling for the whole page */
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fb;
+        }
+        /* Ensures the main content takes up the full viewport height and allows scrolling */
+        .app-container {
+            min-height: 100vh;
+            overflow-y: auto;
+            /* Default safe padding when keypad is hidden */
+            padding-bottom: 1rem; 
+            transition: padding-bottom 0.3s ease-in-out; /* Smooth padding transition */
+        }
+
+        /* Custom scrollbar for output area */
+        .scrollbar-hidden::-webkit-scrollbar {
+            width: 0px;
+            background: transparent;
+        }
+        .scrollbar-hidden {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .mode-button-container .mode-button-active {
+            background-color: #4f46e5;
+            color: white;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+        }
+        .mode-button-container .mode-button-inactive {
+            background-color: #eef2ff;
+            color: #4f46e5;
+            transition: background-color 0.15s;
+        }
+        .mode-button-container .mode-button-inactive:hover {
+            background-color: #e0e7ff;
+        }
+
+        /* Sub-mode styling */
+        .sub-mode-toggle button {
+            transition: background-color 0.15s;
+        }
+        .sub-mode-toggle .active {
+            background-color: #a5b4fc;
+            color: #1e3a8a;
+            font-weight: 600;
+        }
+        
+        /* Input styling adjustments for custom keypad */
+        .keypad-input {
+            cursor: pointer;
+            caret-color: transparent;
+            user-select: none;
+        }
+        .keypad-input:focus {
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.5);
+        }
+
+        /* Keypad button styling - REDUCED SIZE */
+        .keypad-button {
+            padding: 0.75rem; 
+            font-size: 1.25rem; 
+            font-weight: bold;
+            border-radius: 0.5rem;
+            background-color: white;
+            color: #1f2937;
+            box-shadow: 0 0px 1px 0 rgba(0, 0, 0, 0.1), 0 0px 1px 0 rgba(0, 0, 0, 0.06);
+            transition: transform 0.1s ease, background-color 0.1s;
+        }
+        .keypad-button:active {
+            transform: scale(0.98);
+            background-color: #e5e7eb;
+        }
+        .keypad-action-button {
+            background-color: #9ca3af;
+            color: white;
+        }
+        .keypad-action-button:active {
+            background-color: #6b7280;
+        }
+
+        /* --- Fixed Keypad Container --- */
+        #keypad-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 40;
+            background-color: #f7f9fb; 
+            padding: 0.5rem 0.5rem 0.75rem 0.5rem; /* Add padding at the bottom */
+            box-shadow: 0 -5px 15px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease-in-out;
+            transform: translateY(100%); /* Start hidden */
+        }
+        
+        #keypad-container.is-visible {
+            transform: translateY(0); /* Slide up */
+        }
+        
+        #keypad {
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        /* --- Loading Screen Styles --- */
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #4f46e5; /* Primary Indigo background */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 1;
+            transition: opacity 0.5s ease-out;
+            pointer-events: auto; 
+        }
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #fff;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin-top: 20px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* --- Modal Styles --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 24px;
+            border-radius: 12px;
+            max-width: 90%;
+            width: 100%;
+            max-width: 500px; 
+            max-height: 90%;
+            overflow-y: auto;
+            position: relative;
+            animation: slide-up 0.3s ease-out;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        @keyframes slide-up {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    
+    <!-- 1. LOADING SCREEN -->
+    <div id="loading-screen">
+        <p class="text-white text-2xl font-semibold mt-4">Loading Calculator...</p>
+        <div class="spinner"></div>
+    </div>
+
+    <!-- 2. MAIN APP CONTENT Wrapper - Handles Scrolling -->
+    <!-- Added ID 'main-content' here for dynamic padding -->
+    <div id="main-content" class="app-container flex items-start justify-center hidden">
+        <div class="w-full max-w-xl bg-white shadow-2xl rounded-xl p-6 sm:p-8 border-t-8 border-indigo-600 my-4 relative">
+            
+            <!-- Info Button -->
+            <button onclick="toggleModal(true)" class="absolute top-4 right-4 p-2 rounded-full 
+                    bg-orange-600 text-white shadow-lg 
+                    hover:bg-orange-700 transition duration-150 transform hover:scale-105">
+                <!-- Lucide Info Icon (clean 'i' in a circle) -->
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-info">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M12 16v-4"/>
+                    <path d="M12 8h.01"/>
+                </svg>
+            </button>
+
+
+            <header class="mb-6 text-center">
+                <h1 class="text-3xl font-extrabold text-gray-900">Compensation Calculator</h1>
+                <p class="text-gray-500 mt-1">Select the calculation mode.</p>
+            </header>
+
+            <!-- Mode Toggle Buttons -->
+            <div class="flex mb-4 p-1 bg-gray-100 rounded-lg shadow-inner mode-button-container">
+                <button id="mode-injured" onclick="setMode('injured')" class="flex-1 py-2 px-4 rounded-lg font-bold text-sm mode-button-active">
+                    INJURED
+                </button>
+                <button id="mode-fatal" onclick="setMode('fatal')" class="flex-1 py-2 px-4 rounded-lg font-bold text-sm mode-button-inactive">
+                    FATAL
+                </button>
+                <button id="mode-wc" onclick="setMode('wc_injured')" class="flex-1 py-2 px-4 rounded-lg font-bold text-sm mode-button-inactive">
+                    W.C.
+                </button>
+            </div>
+
+            <!-- WC Sub-Mode Toggle -->
+            <div id="wc-sub-mode-toggle" class="flex justify-center mb-6 hidden">
+                <div class="inline-flex rounded-full bg-indigo-50 p-1 sub-mode-toggle">
+                    <button id="wc-mode-injured" onclick="setWCSubMode('wc_injured')" class="py-1 px-4 rounded-full text-sm text-indigo-800 active">
+                        W.C. Injured
+                    </button>
+                    <button id="wc-mode-fatal" onclick="setWCSubMode('wc_fatal')" class="py-1 px-4 rounded-full text-sm text-indigo-800">
+                        W.C. Fatal
+                    </button>
+                </div>
+            </div>
+
+            <!-- Input Form -->
+            <div class="space-y-4" id="input-form">
+                
+                <!-- Common Inputs (Used in all modes) -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label for="monthly-income" class="block text-sm font-medium text-gray-700 mb-1">Monthly Income (₹)</label>
+                        <input type="text" id="monthly-income" readonly onfocus="handleInputFocus(this)" placeholder="e.g., 8000" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 keypad-input">
+                    </div>
+                    <!-- Disabled/Hidden in WC and Fatal mode -->
+                    <div id="input-disability">
+                        <label for="disability-percent" class="block text-sm font-medium text-gray-700 mb-1">Disability (%)</label>
+                        <input type="text" id="disability-percent" readonly onfocus="handleInputFocus(this)" placeholder="e.g., 15.6" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 keypad-input">
+                    </div>
+                    <div>
+                        <label for="age" class="block text-sm font-medium text-gray-700 mb-1">Age (Years)</label>
+                        <input type="text" id="age" readonly onfocus="handleInputFocus(this)" placeholder="e.g., 35" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 keypad-input">
+                    </div>
+                </div>
+
+                <!-- FATAL ONLY Inputs -->
+                <div id="fatal-inputs" class="grid grid-cols-1 sm:grid-cols-2 gap-4 hidden">
+                    <div>
+                        <label for="job-type" class="block text-sm font-medium text-gray-700 mb-1">Job Type</label>
+                        <select id="job-type" onchange="clearResultsOnInput()" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150">
+                            <option value="job">Job / Salaried (Add 50% / 30% / 15%)</option>
+                            <option value="self">Self-Employed / Labour (Add 40% / 25% / 10%)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="dependency-count" class="block text-sm font-medium text-gray-700 mb-1">Number of Dependents</label>
+                        <select id="dependency-count" onchange="clearResultsOnInput()" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150">
+                            <option value="1/2">Parent(s) - 1 Dependent (1/2)</option>
+                            <option value="2/3">2 to 3 Dependents (2/3)</option>
+                            <option value="3/4">4 to 6 Dependents (3/4)</option>
+                            <option value="4/5">6+ Dependents (4/5)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- OPTIONAL/ADDITIONAL Inputs -->
+                <div id="additional-inputs" class="pt-4 border-t border-dashed border-gray-200">
+                    <h3 class="text-base font-semibold text-gray-700 mb-3">Additional Amounts (Optional)</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div id="input-future-prospect">
+                            <label for="future-prospect" class="block text-sm font-medium text-gray-700 mb-1">Future Prospect (₹)</label>
+                            <input type="text" id="future-prospect" readonly onfocus="handleInputFocus(this)" placeholder="e.g., 50000" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 keypad-input">
+                        </div>
+                        <div>
+                            <label for="fixed-bill" class="block text-sm font-medium text-gray-700 mb-1">Fixed Bill Amount (₹)</label>
+                            <input type="text" id="fixed-bill" readonly onfocus="handleInputFocus(this)" placeholder="e.g., 10000" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 keypad-input">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CALCULATE BUTTON -->
+                <button onclick="calculateCompensation()" class="w-full bg-indigo-600 text-white font-bold py-3 rounded-lg shadow-md hover:bg-indigo-700 transition duration-200 focus:outline-none focus:ring-4 focus:ring-indigo-500 focus:ring-opacity-50 mt-6">
+                    Calculate Compensation
+                </button>
+            </div>
+            
+            <!-- Output Area -->
+            <div id="result-area" class="mt-8 hidden">
+                <h2 class="text-xl font-bold text-gray-800 border-b pb-2 mb-4">Calculation Results (<span id="mode-display">Injured</span> Mode)</h2>
+                
+                <!-- Final Output -->
+                <div class="bg-green-50 p-4 rounded-lg border border-green-200 mb-4">
+                    <p class="text-sm font-medium text-green-700">TOTAL COMPENSATION AMOUNT:</p>
+                    <p id="final-compensation" class="text-4xl font-extrabold text-green-800 mt-1"></p>
+                </div>
+
+                <!-- Calculation Steps Breakdown -->
+                <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-3">Step-by-Step Breakdown</h3>
+                    <div id="calculation-steps" class="space-y-3 max-h-56 overflow-y-auto scrollbar-hidden">
+                        <!-- Steps will be injected here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Error/Message Box -->
+            <div id="message-box" class="mt-4 p-3 rounded-lg text-sm transition duration-300 hidden"></div>
+            
+        </div>
+    </div>
+    
+    <!-- 3. INFO MODAL (Hidden by default) -->
+    <div id="info-modal" class="modal-overlay hidden">
+        <div class="modal-content w-full sm:max-w-lg">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b border-gray-300">Compensation Calculator - Legal Reference</h2>
+            
+            <div class="space-y-4 text-gray-700">
+                <!-- UPDATED POWERED BY SECTION -->
+                <div class="font-semibold text-sm text-gray-600 space-y-1">
+                    <p>
+                        Powered by : <span class="text-indigo-700 font-bold">H.B. SAYYED & ASSOCIATES</span>
+                    </p>
+                    <p>
+                        Developed by : <span class="text-indigo-700 font-bold">SAYYED KAIF</span>
+                    </p>
+                </div>
+                
+                <hr class="border-gray-200">
+
+                <h3 class="text-xl font-bold text-gray-800">Legal Basis of Calculation (M.V. Act, 1988)</h3>
+                
+                <div class="bg-blue-50 p-4 rounded-lg border border-blue-200 text-blue-800">
+                    <h4 class="font-bold mb-2 text-base">Authority for Multiplier and Future Prospects:</h4>
+                    <p class="text-sm">
+                        The core calculations for Loss of Future Earnings/Estate rely on the **Multiplier Method** established by the Hon'ble Supreme Court of India in the landmark cases of **Sarala Verma & Ors. vs. DTC (2009)** and further modified for **Future Prospects** in **National Insurance Co. Ltd. vs. Pranay Sethi & Ors. (2017)**.
+                    </p>
+                    <p class="text-sm mt-2">
+                        These formulas and tables provide the legally authorized framework for determining just compensation under the **Motor Vehicles Act, 1988**.
+                    </p>
+                    <p class="text-sm mt-2">
+                        For the **W.C. Act Mode**, the calculation uses the **Relevant Factor** provided in **Schedule IV of the Employee's Compensation Act, 1923**.
+                    </p>
+                </div>
+                
+                <h3 class="text-xl font-bold text-gray-800 pt-2">Formulaic Breakdown</h3>
+                <ul class="list-disc ml-5 space-y-2 text-sm">
+                    <li>**Injured/Fatal (M.V. Act):** Calculation uses the income, adjusted for **Future Prospects** based on age/job type, and the corresponding **Age Multiplier** as per Supreme Court guidelines.</li>
+                    <li>**W.C. Act Mode:** Calculation uses the statutory percentage of monthly wages (50% or 60%) multiplied by the **Relevant Factor** for the claimant's age, as provided in **Schedule IV of the Employee's Compensation Act, 1923**.</li>
+                    <li>**Accuracy:** The final amount is the sum of these legally defined components (Loss of Earning Capacity/Estate, Future Prospect, Multiplier, and Fixed Bills).</li>
+                </ul>
+
+                <h3 class="text-xl font-bold text-gray-800 pt-2">Disclaimer and Verification</h3>
+                
+                <div class="bg-yellow-50 p-3 rounded-lg border border-yellow-200 text-yellow-800">
+                    <h4 class="font-bold mb-1">Mandatory Verification:</h4>
+                    <p class="text-sm">
+                        This tool is provided for **internal estimation only**. Due to the complexity and frequent changes in legal precedents, the results must be **manually verified** by a legal professional. We assume no liability for errors or omissions.
+                    </p>
+                </div>
+            </div>
+
+            <button onclick="toggleModal(false)" class="mt-6 w-full bg-indigo-600 text-white font-bold py-2 rounded-lg hover:bg-indigo-700 transition duration-200">
+                Close Panel
+            </button>
+        </div>
+    </div>
+
+
+    <!-- 4. CUSTOM KEYPAD (FIXED AT THE BOTTOM) -->
+    <div id="keypad-container">
+        <!-- New Keypad Toggle Button (Styling updated for better visuals) -->
+        <div class="flex justify-end pr-2 -mb-4">
+            <button onclick="toggleKeypadVisibility()" id="keypad-toggle-btn" 
+                    class="p-2 bg-white text-indigo-600 shadow-lg border border-indigo-200 
+                           hover:bg-indigo-50 hover:text-indigo-700 transition duration-200 
+                           rounded-full transform hover:scale-105 active:scale-95">
+                <!-- Icon dimensions updated to 24x24 for better padding -->
+                <svg id="keypad-toggle-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-down">
+                    <!-- Icon placeholder for initial state (down arrow) -->
+                    <path d="m6 9 6 6 6-6"/>
+                </svg>
+            </button>
+        </div>
+        
+        <div id="keypad" class="grid grid-cols-3 gap-2 p-2 bg-gray-100 rounded-xl shadow-inner">
+            <button class="keypad-button" onclick="handleKeypadInput('7')">7</button>
+            <button class="keypad-button" onclick="handleKeypadInput('8')">8</button>
+            <button class="keypad-button" onclick="handleKeypadInput('9')">9</button>
+            <button class="keypad-button" onclick="handleKeypadInput('4')">4</button>
+            <button class="keypad-button" onclick="handleKeypadInput('5')">5</button>
+            <button class="keypad-button" onclick="handleKeypadInput('6')">6</button>
+            <button class="keypad-button" onclick="handleKeypadInput('1')">1</button>
+            <button class="keypad-button" onclick="handleKeypadInput('2')">2</button>
+            <button class="keypad-button" onclick="handleKeypadInput('3')">3</button>
+            <!-- Corrected Row (Decimal, Zero, Clear) -->
+            <button class="keypad-button keypad-action-button" onclick="handleKeypadInput('.')">.</button>
+            <button class="keypad-button" onclick="handleKeypadInput('0')">0</button>
+            <button class="keypad-button keypad-action-button" onclick="handleKeypadInput('C')">C</button>
+            <!-- Backspace/Back button (Spans all 3 columns) -->
+            <button class="keypad-button col-span-3 keypad-action-button" onclick="handleKeypadInput('<--')">
+                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="w-6 h-6 inline-block">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+                 </svg>
+                 BACK
+            </button>
+        </div>
+    </div>
+
+
+    <script>
+        let currentMode = 'injured'; // Default mode
+        let activeInput = null; // Track the currently focused input for the keypad
+        
+        // Age Multiplier Table (Motor Accidents)
+        const AGE_MULTIPLIERS = [
+            { maxAge: 25, multiplier: 18 },
+            { maxAge: 30, multiplier: 17 },
+            { maxAge: 35, multiplier: 16 },
+            { maxAge: 40, multiplier: 15 },
+            { maxAge: 45, multiplier: 14 },
+            { maxAge: 50, multiplier: 13 },
+            { maxAge: 55, multiplier: 11 },
+            { maxAge: 60, multiplier: 9 },
+            { maxAge: 65, multiplier: 7 },
+            { maxAge: 70, multiplier: 5 }
+        ];
+
+        /*
+        * W.C.A Relevant Factor Table (Based on Age)
+        */
+        const WC_FACTORS = [
+            { maxAge: 16, factor: 228.54 }, 
+            { maxAge: 17, factor: 227.49 },
+            { maxAge: 18, factor: 226.38 },
+            { maxAge: 19, factor: 225.22 },
+            { maxAge: 20, factor: 224.00 },
+            { maxAge: 21, factor: 222.71 },
+            { maxAge: 22, factor: 221.37 },
+            { maxAge: 23, factor: 219.95 },
+            { maxAge: 24, factor: 218.47 },
+            { maxAge: 26, factor: 215.28 },
+            { maxAge: 27, factor: 213.57 },
+            { maxAge: 28, factor: 211.79 },
+            { maxAge: 29, factor: 209.92 },
+            { maxAge: 30, factor: 207.98 },
+            { maxAge: 31, factor: 205.95 },
+            { maxAge: 32, factor: 203.85 },
+            { maxAge: 33, factor: 201.66 },
+            { maxAge: 34, factor: 199.40 },
+            { maxAge: 35, factor: 197.06 },
+            { maxAge: 36, factor: 194.64 },
+            { maxAge: 37, factor: 192.14 },
+            { maxAge: 38, factor: 189.56 },
+            { maxAge: 39, factor: 186.90 },
+            { maxAge: 40, factor: 184.17 },
+            { maxAge: 41, factor: 181.37 },
+            { maxAge: 42, factor: 178.49 },
+            { maxAge: 43, factor: 175.54 },
+            { maxAge: 44, factor: 172.52 },
+            { maxAge: 45, factor: 169.44 },
+            { maxAge: 46, factor: 166.29 },
+            { maxAge: 47, factor: 163.07 },
+            { maxAge: 48, factor: 159.80 },
+            { maxAge: 49, factor: 156.47 },
+            { maxAge: 50, factor: 153.09 },
+            { maxAge: 51, factor: 149.67 },
+            { maxAge: 52, factor: 146.20 },
+            { maxAge: 53, factor: 142.68 },
+            { maxAge: 54, factor: 139.13 },
+            { maxAge: 55, factor: 135.56 },
+            { maxAge: 56, factor: 131.95 },
+            { maxAge: 57, factor: 128.33 },
+            { maxAge: 58, factor: 124.70 },
+            { maxAge: 59, factor: 121.05 },
+            { maxAge: 60, factor: 117.41 },
+            { maxAge: 61, factor: 113.77 },
+            { maxAge: 62, factor: 110.14 },
+            { maxAge: 63, factor: 106.52 },
+            { maxAge: 64, factor: 102.93 },
+            { maxAge: 65, factor: 99.37 }, 
+            { maxAge: 70, factor: 99.37 }
+        ];
+
+          /**
+         * Toggles the keypad visibility using the dedicated button.
+         */
+        function toggleKeypadVisibility() {
+            const keypadContainer = document.getElementById('keypad-container');
+            const isVisible = keypadContainer.classList.contains('is-visible');
+            
+            if (isVisible) {
+                hideKeypad();
+            } else {
+                // Only allow showing the keypad if an input field is currently active
+                if (activeInput) {
+                    showKeypad(activeInput);
+                } else {
+                    displayMessage('Please tap an input field (e.g., Monthly Income) to attach the keypad first.', 'error');
+                }
+            }
+        }
+        
+        /**
+         * Shows the fixed keypad, adds dynamic padding to the main content, and scrolls the input into view.
+         */
+        function showKeypad(inputElement) {
+            const keypadContainer = document.getElementById('keypad-container');
+            const mainContent = document.getElementById('main-content');
+            const toggleIcon = document.getElementById('keypad-toggle-icon');
+
+            // 1. Show keypad
+            keypadContainer.classList.add('is-visible');
+            // Change icon to Down arrow (to close the keypad)
+            toggleIcon.innerHTML = '<path d="m6 9 6 6 6-6"/>'; 
+
+            // 2. Dynamic Padding and Scroll Adjustment
+            setTimeout(() => {
+                const keypadHeight = keypadContainer.offsetHeight;
+                const buffer = 30; // Extra breathing room
+                
+                // Set the bottom padding of the main scrollable area
+                mainContent.style.paddingBottom = (keypadHeight + buffer) + 'px'; 
+
+                // Ensure the active input is visible above the keypad
+                const inputRect = inputElement.getBoundingClientRect();
+                const viewportHeight = window.innerHeight;
+                
+                // If the input's bottom edge is below the calculated visibility line
+                if (inputRect.bottom > (viewportHeight - keypadHeight - buffer)) { 
+                    const scrollAmount = inputRect.bottom - (viewportHeight - keypadHeight) + buffer; 
+                    window.scrollBy({
+                        top: scrollAmount,
+                        behavior: 'smooth'
+                    });
+                }
+            }, 100); 
+        }
+
+        /**
+         * Hides the fixed keypad and resets the dynamic padding.
+         */
+        function hideKeypad() {
+            const keypadContainer = document.getElementById('keypad-container');
+            const mainContent = document.getElementById('main-content');
+            const toggleIcon = document.getElementById('keypad-toggle-icon');
+            
+            // 1. Hide keypad
+            keypadContainer.classList.remove('is-visible');
+            // Change icon to Up arrow (to open the keypad)
+            toggleIcon.innerHTML = '<path d="m18 15-6-6-6 6"/>'; 
+
+            // 2. Reset Padding
+            mainContent.style.paddingBottom = '1rem'; 
+            
+            // 3. Remove focus styling from input
+            if (activeInput) {
+                activeInput.classList.remove('ring-4', 'ring-indigo-200', 'ring-opacity-50');
+                activeInput = null;
+            }
+        }
+
+        /**
+         * Sets the currently active input field for the keypad and shows the keypad.
+         */
+        function handleInputFocus(inputElement) {
+            // Remove focus styling from the previous active input
+            if (activeInput) {
+                activeInput.classList.remove('ring-4', 'ring-indigo-200', 'ring-opacity-50');
+            }
+            
+            // Set the new active input and apply focus styling
+            activeInput = inputElement;
+            activeInput.classList.add('ring-4', 'ring-indigo-200', 'ring-opacity-50');
+            
+            // Show the fixed keypad and handle scrolling and padding
+            showKeypad(activeInput);
+
+            // This ensures that changing the active input clears the previous calculation results
+            clearResultsOnInput();
+        }
+
+        /**
+         * Processes key presses from the custom numerical keypad.
+         */
+        function handleKeypadInput(key) {
+            if (!activeInput) {
+                displayMessage('Please tap on an input field first (e.g., Monthly Income) to activate it.', 'error');
+                return;
+            }
+            
+            let currentValue = activeInput.value.toString();
+            let newValue = currentValue; 
+
+            if (key === 'C') { // Clear all
+                activeInput.value = '';
+                clearResultsOnInput();
+                return;
+            } 
+            
+            if (key === '<--') { // Backspace
+                const newValue = currentValue.slice(0, -1);
+                activeInput.value = newValue;
+                clearResultsOnInput();
+                return;
+            } 
+            
+            // Handle Decimal Point
+            if (key === '.') {
+                const isDecimalField = activeInput.id === 'monthly-income' || activeInput.id === 'disability-percent' || activeInput.id === 'future-prospect' || activeInput.id === 'fixed-bill';
+                
+                if (isDecimalField && !currentValue.includes('.')) {
+                    newValue = currentValue === '' ? '0.' : currentValue + key; 
+                } else {
+                    return; 
+                }
+            } 
+            
+            // Handle Digits 0-9
+            if (key >= '0' && key <= '9') {
+                if (currentValue === '0' && !currentValue.includes('.')) {
+                    newValue = key;
+                } else {
+                    newValue = currentValue + key;
+                }
+                
+                let maxCap = Infinity;
+
+                if (activeInput.id === 'disability-percent' || activeInput.id === 'age') {
+                    maxCap = 100;
+                }
+
+                const parsedValue = parseFloat(newValue);
+                
+                if (parsedValue > maxCap || (currentValue === '0' && !newValue.includes('.') && newValue.length > 1)) {
+                    return; 
+                }
+            }
+
+            if (newValue !== currentValue) {
+                activeInput.value = newValue;
+                clearResultsOnInput();
+            }
+        }
+
+        // Listener to hide keypad when clicking outside of an input or the keypad itself
+        document.body.addEventListener('click', (event) => {
+            const inputElements = Array.from(document.querySelectorAll('.keypad-input'));
+            const keypadContainer = document.getElementById('keypad-container');
+            const keypadToggleBtn = document.getElementById('keypad-toggle-btn');
+            
+            const isInput = inputElements.includes(event.target);
+            const isKeypadOrToggle = keypadContainer.contains(event.target) || keypadToggleBtn === event.target || keypadToggleBtn.contains(event.target);
+
+            if (keypadContainer.classList.contains('is-visible') && !isInput && !isKeypadOrToggle) {
+                hideKeypad();
+            }
+        });
+
+
+        /**
+         * Hides the result area and message box when any input changes.
+         */
+        function clearResultsOnInput() {
+            document.getElementById('result-area').classList.add('hidden');
+            document.getElementById('message-box').classList.add('hidden');
+        }
+        
+        /**
+         * Toggles the Info/Notice modal visibility.
+         */
+        function toggleModal(show) {
+            const modal = document.getElementById('info-modal');
+            if (show) {
+                modal.classList.remove('hidden');
+                // Hide keypad when modal is open
+                hideKeypad();
+            } else {
+                modal.classList.add('hidden');
+            }
+        }
+
+        /**
+         * Switches the calculator mode (Motor Act vs. WC Act) and updates inputs.
+         */
+        function setMode(mode) {
+             // Hide keypad on mode change
+            hideKeypad();
+            
+            if (mode.startsWith('wc_')) {
+                setWCSubMode(mode);
+                return;
+            }
+
+            currentMode = mode;
+            const modes = ['injured', 'fatal', 'wc'];
+            const buttons = modes.map(id => document.getElementById(`mode-${id}`));
+            const wcSubModeToggle = document.getElementById('wc-sub-mode-toggle');
+            
+            // Set active/inactive classes for main buttons
+            buttons.forEach(btn => {
+                const isActive = btn.id === `mode-${mode}`;
+                btn.classList.toggle('mode-button-active', isActive);
+                btn.classList.toggle('mode-button-inactive', !isActive);
+            });
+
+            // Handle visibility based on main mode
+            const isFatal = mode === 'fatal';
+            const isInjured = mode === 'injured';
+
+            document.getElementById('mode-display').textContent = mode === 'injured' ? 'Injured' : 'Fatal';
+            clearResultsOnInput();
+
+            // Toggle WC sub-mode visibility
+            wcSubModeToggle.classList.add('hidden');
+
+            // Toggle input visibility
+            document.getElementById('fatal-inputs').classList.toggle('hidden', !isFatal);
+            document.getElementById('input-disability').classList.toggle('hidden', !isInjured);
+            // Future Prospect is shown in Injured and Fatal modes, hidden in WC
+            document.getElementById('input-future-prospect').classList.toggle('hidden', !(isInjured || isFatal));
+            
+            // Additional inputs (which contains Fixed Bill) is always visible
+            document.getElementById('additional-inputs').classList.remove('hidden');
+        }
+
+        /**
+         * Switches the WC mode (Injured vs. Fatal)
+         */
+        function setWCSubMode(mode) {
+             // Hide keypad on mode change
+            hideKeypad();
+
+            currentMode = mode;
+            const mainWCButton = document.getElementById('mode-wc');
+            const otherModes = ['injured', 'fatal'];
+            
+            // 1. Set main mode button state
+            otherModes.forEach(id => {
+                const btn = document.getElementById(`mode-${id}`);
+                btn.classList.remove('mode-button-active');
+                btn.classList.add('mode-button-inactive');
+            });
+            mainWCButton.classList.add('mode-button-active');
+            mainWCButton.classList.remove('mode-button-inactive');
+
+            // 2. Show WC sub-mode toggle and set active sub-button
+            document.getElementById('wc-sub-mode-toggle').classList.remove('hidden');
+            const wcInjuredBtn = document.getElementById('wc-mode-injured');
+            const wcFatalBtn = document.getElementById('wc-mode-fatal');
+
+            wcInjuredBtn.classList.toggle('active', mode === 'wc_injured');
+            wcFatalBtn.classList.toggle('active', mode === 'wc_fatal');
+
+            document.getElementById('mode-display').textContent = mode === 'wc_injured' ? 'W.C. Injured' : 'W.C. Fatal';
+            clearResultsOnInput();
+
+            // 3. Control input visibility for WC mode
+            document.getElementById('fatal-inputs').classList.add('hidden');
+            document.getElementById('input-disability').classList.add('hidden');
+            // Future Prospect is NOT used in WC
+            document.getElementById('input-future-prospect').classList.add('hidden');
+            // Additional inputs (to show Fixed Bill) is now visible
+            document.getElementById('additional-inputs').classList.remove('hidden'); 
+        }
+        
+        /**
+         * Looks up the correct multiplier based on the given age (Motor Act).
+         */
+        function getMultiplier(age) {
+            if (age < 15) return 18;
+            for (const range of AGE_MULTIPLIERS) {
+                if (age <= range.maxAge) {
+                    return range.multiplier;
+                }
+            }
+            return 0; 
+        }
+
+        /**
+         * Looks up the correct factor based on the given age (W.C. Act).
+         */
+        function getWCFactor(age) {
+            if (age < 17) return 228.54;
+            if (age > 65) return 99.37;
+            
+            for (const item of WC_FACTORS) {
+                if (age <= item.maxAge) {
+                    return item.factor;
+                }
+            }
+            return 99.37; // Default to the highest age factor
+        }
+
+        /**
+         * Calculates the mandatory Future Prospect percentage for Fatal cases.
+         */
+        function getFatalFutureProspectPercent(age, jobType) {
+            if (age < 40) {
+               return jobType === 'job' ? 0.50 : 0.40; // 50% for Job, 40% for Self/Labour
+            } else if (age >= 40 && age <= 50) {
+                return jobType === 'job' ? 0.30 : 0.25; // 30% for Job, 25% for Self/Labour
+            } else if (age > 50 && age <= 60) {
+                return jobType === 'job' ? 0.15 : 0.10; // 15% for Job, 10% for Self/Labour
+            }
+            return 0; // Above 60
+        }
+        
+        /**
+         * Gets the dependency fraction as a number.
+         */
+        function getDependencyFraction(value) {
+            switch (value) {
+                case '1/2': return 1/2; 
+                case '2/3': return 2/3; 
+                case '3/4': return 3/4; 
+                case '4/5': return 4/5; 
+                default: return 1; 
+            }
+        }
+        
+        /**
+         * Formats a number to Indian currency style (e.g., ₹ 1,00,000).
+         */
+        function formatCurrency(num) {
+            num = Math.max(0, parseFloat(num) || 0);
+            return new Intl.NumberFormat('en-IN', {
+                style: 'currency',
+                currency: 'INR',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0,
+            }).format(num).replace('₹', '₹ ');
+        }
+
+        /**
+         * Displays a message in the designated message box.
+         */
+        function displayMessage(text, type) {
+            const msgBox = document.getElementById('message-box');
+            msgBox.textContent = text;
+            msgBox.classList.remove('hidden', 'bg-red-100', 'text-red-800', 'bg-green-100', 'text-green-800');
+            
+            if (type === 'error') {
+                msgBox.classList.add('bg-red-100', 'text-red-800');
+            } else if (type === 'success') {
+                msgBox.classList.add('bg-green-100', 'text-green-800');
+            }
+        }
+
+        /**
+         * Clears the output and message areas.
+         */
+        function clearOutput() {
+            document.getElementById('result-area').classList.add('hidden');
+            document.getElementById('message-box').classList.add('hidden');
+        }
+
+        /**
+         * Main function to calculate the compensation.
+         */
+        function calculateCompensation() {
+            // Hide keypad after calculation
+            hideKeypad();
+
+            clearOutput();
+
+            // --- 1. Get Common Inputs ---
+            // Now using parseFloat/parseInt to get numeric values from type="text" inputs
+            const monthlyIncome = parseFloat(document.getElementById('monthly-income').value);
+            const age = parseInt(document.getElementById('age').value);
+
+            if (isNaN(monthlyIncome) || monthlyIncome <= 0) {
+                displayMessage('Please enter a valid Monthly Income (must be a positive number).', 'error');
+                return;
+            }
+            // Updated age validation to include max cap of 100
+            if (isNaN(age) || age < 1 || age > 100) {
+                displayMessage('Please enter a valid Age (must be between 1 and 100).', 'error');
+                return;
+            }
+
+            // --- 2. Calculation Dispatch ---
+            if (currentMode.startsWith('wc_')) {
+                calculateWC(monthlyIncome, age);
+            } else if (currentMode === 'injured') {
+                calculateInjured(monthlyIncome, age);
+            } else { // fatal
+                calculateFatal(monthlyIncome, age);
+            }
+        }
+
+        // --------------------------------------------------------------------------------
+        // INJURED MODE CALCULATION (Motor Act)
+        // --------------------------------------------------------------------------------
+
+        function calculateInjured(monthlyIncome, age) {
+            // disability is parsed as float here, supporting decimals
+            const disability = parseFloat(document.getElementById('disability-percent').value);
+            
+            // Validation for disability percentage (must be between 0 and 100)
+            if (isNaN(disability) || disability < 0 || disability > 100) {
+                displayMessage('Please enter a valid Disability Percentage (0 to 100).', 'error');
+                return;
+            }
+
+            const futureProspectStr = document.getElementById('future-prospect').value;
+            const fixedBillStr = document.getElementById('fixed-bill').value;
+            
+            const manualFutureProspect = Math.max(0, parseFloat(futureProspectStr) || 0);
+            const fixedBill = Math.max(0, parseFloat(fixedBillStr) || 0);
+
+            const stepsContainer = document.getElementById('calculation-steps');
+            stepsContainer.innerHTML = '';
+            const steps = [];
+
+            // Step A: Convert Monthly Income to Annual Income
+            const annualIncome = monthlyIncome * 12;
+            steps.push({ 
+                label: 'Step A: Calculate Annual Income', 
+                formula: `${formatCurrency(monthlyIncome)} (Monthly Income) × 12 (Months) = ${formatCurrency(annualIncome)}`,
+                value: annualIncome
+            });
+
+            // Step B: Calculate Disability Adjusted Annual Loss
+            const lossRatio = disability / 100;
+            const lossOfIncome = annualIncome * lossRatio;
+            steps.push({
+                label: 'Step B: Calculate Disability Adjusted Annual Loss',
+                formula: `${formatCurrency(annualIncome)} (Annual Income) × ${disability}% (Disability) = ${formatCurrency(lossOfIncome)}`,
+                value: lossOfIncome
+            });
+            
+            // Step C: Apply Age Multiplier to get Base Compensation
+            const multiplier = getMultiplier(age);
+            const baseCompensation = lossOfIncome * multiplier;
+            
+            steps.push({
+                label: 'Step C: Apply Age Multiplier to get Base Compensation (Loss of Future Income)',
+                formula: `${formatCurrency(lossOfIncome)} (Annual Loss) × ${multiplier} (Age Multiplier for ${age} years) = ${formatCurrency(baseCompensation)}`,
+                value: baseCompensation
+            });
+            
+            // Step D: Add Optional Amounts for Total Compensation
+            const totalCompensation = baseCompensation + manualFutureProspect + fixedBill;
+            
+            let finalFormula = `${formatCurrency(baseCompensation)} (Loss of Future Income) + ${formatCurrency(manualFutureProspect)} (Future Prospect) + ${formatCurrency(fixedBill)} (Fixed Bill)`;
+
+            steps.push({
+                label: 'Step D: Calculate Total Compensation',
+                formula: `${finalFormula} = ${formatCurrency(totalCompensation)}`,
+                value: totalCompensation
+            });
+
+            // Display Results
+            steps.forEach(addStepToUI);
+            document.getElementById('final-compensation').textContent = formatCurrency(totalCompensation);
+            document.getElementById('result-area').classList.remove('hidden');
+            displayMessage('Injured Person compensation calculation complete.', 'success');
+        }
+
+        // --------------------------------------------------------------------------------
+        // FATAL MODE CALCULATION (Motor Act)
+        // --------------------------------------------------------------------------------
+
+        function calculateFatal(monthlyIncome, age) {
+            const jobType = document.getElementById('job-type').value;
+            const dependencyFractionValue = document.getElementById('dependency-count').value;
+            const dependencyFraction = getDependencyFraction(dependencyFractionValue);
+            const fixedBillStr = document.getElementById('fixed-bill').value;
+            
+            const fixedBill = Math.max(0, parseFloat(fixedBillStr) || 0);
+
+            const stepsContainer = document.getElementById('calculation-steps');
+            stepsContainer.innerHTML = '';
+            const steps = [];
+            
+            // Step A: Add Future Prospect to Monthly Income
+            const fpPercent = getFatalFutureProspectPercent(age, jobType);
+            const fpAmount = monthlyIncome * fpPercent;
+            const adjustedMonthlyIncome = monthlyIncome + fpAmount;
+            
+            const fpLabel = `${fpPercent * 100}% (Future Prospect for ${jobType === 'job' ? 'Job/Salaried' : 'Self/Labour'})`;
+
+            steps.push({
+                label: 'Step A: Adjust Monthly Income for Future Prospect',
+                formula: `${formatCurrency(monthlyIncome)} + ${fpLabel} = ${formatCurrency(monthlyIncome)} + ${formatCurrency(fpAmount)} = ${formatCurrency(adjustedMonthlyIncome)} (Adjusted Monthly Income)`,
+                value: adjustedMonthlyIncome
+            });
+            
+            // Step B: Convert to Annual Income and Apply Dependency Deduction
+            const annualAdjustedIncome = adjustedMonthlyIncome * 12;
+
+            // Loss of Estate (After Dependency) = Annual Adjusted Income * Dependency Fraction
+            const lossOfEstate = annualAdjustedIncome * dependencyFraction;
+            
+            steps.push({
+                label: 'Step B: Apply Dependency Deduction & Annualize',
+                formula: `(${formatCurrency(adjustedMonthlyIncome)} × 12) × ${dependencyFractionValue} (Dependency Fraction) = ${formatCurrency(lossOfEstate)} (Annual Loss of Estate)`,
+                value: lossOfEstate
+            });
+            
+            // Step C: Apply Age Multiplier
+            const multiplier = getMultiplier(age);
+            const baseCompensation = lossOfEstate * multiplier;
+            
+            steps.push({
+                label: 'Step C: Apply Age Multiplier to get Base Compensation (Loss of Future Income)',
+                formula: `${formatCurrency(lossOfEstate)} (Annual Loss of Estate) × ${multiplier} (Age Multiplier for ${age} years) = ${formatCurrency(baseCompensation)}`,
+                value: baseCompensation
+            });
+            
+            // Step D: Add Fixed Bill (Optional) for Total Compensation
+            const totalCompensation = baseCompensation + fixedBill;
+            
+            let finalFormula = `${formatCurrency(baseCompensation)} (Base Compensation) + ${formatCurrency(fixedBill)} (Fixed Bill)`;
+
+            steps.push({
+                label: 'Step D: Calculate Total Compensation',
+                formula: `${finalFormula} = ${formatCurrency(totalCompensation)}`,
+                value: totalCompensation
+            });
+            
+            // Display Results
+            steps.forEach(addStepToUI);
+            document.getElementById('final-compensation').textContent = formatCurrency(totalCompensation);
+            document.getElementById('result-area').classList.remove('hidden');
+            displayMessage('Fatal Accident compensation calculation complete.', 'success');
+        }
+
+        // --------------------------------------------------------------------------------
+        // W.C. ACT CALCULATION (Simplified)
+        // --------------------------------------------------------------------------------
+
+        function calculateWC(monthlyIncome, age) {
+            const isFatal = currentMode === 'wc_fatal';
+            // Use 50% for Fatal, 60% for Injured, as requested
+            const incomePercentage = isFatal ? 0.50 : 0.60;
+            const incomePercentText = isFatal ? '50%' : '60%';
+            
+            const fixedBillStr = document.getElementById('fixed-bill').value;
+            const fixedBill = Math.max(0, parseFloat(fixedBillStr) || 0);
+
+            // Use the monthly income directly, no max cap
+            const incomeShare = monthlyIncome * incomePercentage;
+            
+            const stepsContainer = document.getElementById('calculation-steps');
+            stepsContainer.innerHTML = '';
+            const steps = [];
+
+            // Step A: Calculate Income Share (50% or 60% of Monthly Income)
+            steps.push({ 
+                label: `Step A: Calculate Income Share (${incomePercentText} of Monthly Income)`, 
+                formula: `${formatCurrency(monthlyIncome)} (Monthly Income) × ${incomePercentText} = ${formatCurrency(incomeShare)} (Income Share)`,
+                value: incomeShare
+            });
+
+            // Step B: Apply WCA Factor
+            const wcFactor = getWCFactor(age);
+            const baseCompensation = incomeShare * wcFactor;
+            
+            steps.push({
+                label: 'Step B: Apply W.C.A. Relevant Factor (Base Compensation)',
+                formula: `${formatCurrency(incomeShare)} (Income Share) × ${wcFactor.toFixed(2)} (WCA Factor for Age ${age}) = ${formatCurrency(baseCompensation)}`,
+                value: baseCompensation
+            });
+            
+            // Step C: Add Fixed Bill for Final Compensation
+            const finalTotalCompensation = baseCompensation + fixedBill;
+            
+            let finalFormula = `${formatCurrency(baseCompensation)} (Base Compensation) + ${formatCurrency(fixedBill)} (Fixed Bill)`;
+
+            steps.push({
+                label: 'Step C: Calculate Total Compensation',
+                formula: `${finalFormula} = ${formatCurrency(finalTotalCompensation)}`,
+                value: finalTotalCompensation
+            });
+
+            // Display Results
+            steps.forEach(addStepToUI);
+            document.getElementById('final-compensation').textContent = formatCurrency(finalTotalCompensation);
+            document.getElementById('result-area').classList.remove('hidden');
+            displayMessage(`${isFatal ? 'W.C. Fatal' : 'W.C. Injured'} calculation complete (Simplified, includes Fixed Bill).`, 'success');
+        }
+
+
+        /** Helper to add a step to the UI */
+        function addStepToUI(step) {
+            const stepsContainer = document.getElementById('calculation-steps');
+            const stepElement = document.createElement('div');
+            stepElement.className = 'p-3 bg-white rounded-md border border-gray-300 shadow-sm';
+            stepElement.innerHTML = `
+                <p class="text-xs font-bold text-indigo-600 mb-1">${step.label}</p>
+                <p class="text-sm font-mono text-gray-800">${step.formula}</p>
+            `;
+            stepsContainer.appendChild(stepElement);
+        }
+
+        // --- Initialization on Load ---
+        function initApp() {
+            setMode('injured'); // Set initial mode
+            const loadingScreen = document.getElementById('loading-screen');
+            const mainContent = document.getElementById('main-content');
+            
+            // Update the initial toggle button icon to 'up' (keypad is hidden)
+            document.getElementById('keypad-toggle-icon').innerHTML = '<path d="m18 15-6-6-6 6"/>';
+            
+            // Minimal delay (100ms) to ensure initial rendering is complete before fade-out
+            setTimeout(() => {
+                // Instantly fade out the loading screen
+                loadingScreen.style.opacity = '0';
+                loadingScreen.style.pointerEvents = 'none'; 
+                
+                // After fade out transition (0.5s), hide it completely
+                setTimeout(() => {
+                    loadingScreen.classList.add('hidden');
+                    mainContent.classList.remove('hidden');
+                }, 500); 
+
+            }, 100); // Minimal delay
+        }
+
+        window.onload = initApp;
+
+    </script>
+</body>
+</html>
