@@ -867,6 +867,11 @@
          * Main function to calculate the compensation.
          */
         function calculateCompensation() {
+
+            if (window.navigator.vibrate) {
+             window.navigator.vibrate(50);
+              }
+
             // Hide keypad after calculation
             hideKeypad();
 
