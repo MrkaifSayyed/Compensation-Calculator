@@ -603,6 +603,11 @@
             if (key === 'C') { // Clear all
                 activeInput.value = '';
                 clearResultsOnInput();
+                
+                if (window.navigator.vibrate) {
+                   window.navigator.vibrate(100);
+                  }
+                
                 return;
             } 
             
